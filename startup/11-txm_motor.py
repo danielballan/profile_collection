@@ -80,6 +80,9 @@ DetD = DetSupport("XF:18IDB-OP{DetS:D", name="DetD")
 clens = Condenser("XF:18IDB-OP", name="clens")
 aper = Aperture("XF:18IDB-OP", name="aper")
 zp = Zoneplate("XF:18IDB-OP", name="zp")
+
+zp.wait_for_connection()
+
 phase_ring = PhaseRing("XF:18IDB-OP", name="phase_ring")
 betr = BetrandLens("XF:18IDB-OP", name="betr")
 zps = TXMSampleStage("XF:18IDB-OP", name="zps")
