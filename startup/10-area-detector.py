@@ -1,3 +1,5 @@
+import itertools
+
 from ophyd import Component as Cpt, Signal
 from ophyd.areadetector.filestore_mixins import (
     FileStoreHDF5IterativeWrite,
@@ -20,6 +22,19 @@ from ophyd.areadetector.detectors import DetectorBase
 from nslsii.ad33 import SingleTriggerV33, StatsPluginV33, CamV33Mixin
 
 
+class ExternalFileReference(Signal):
+    """
+    A pure software signal where a Device can stash a datum_id
+    """
+    def __init__(self, *args, shape, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.shape = shape
+
+    def describe(self):
+        res = super().describe()
+        res[self.name].update(dict(external="FILESTORE:", dtype="array", shape=self.shape))
+        return res
+
 class AndorCam(CamV33Mixin, AreaDetectorCam):
     def __init__(self, *args, **kwargs):
         AreaDetectorCam.__init__(self, *args, **kwargs)
@@ -38,12 +53,13 @@ class AndorCam(CamV33Mixin, AreaDetectorCam):
 class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
     # AD v2.2.0 (at least) does not have this. It is present in v1.9.1.
     file_number_sync = None
-    time_stamp = Cpt(Signal, value="", kind="normal")
+    time_stamp = Cpt(ExternalFileReference, value="", kind="normal", shape=[])
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._ts_datum_factory = None
         self._ts_resource_uid = ""
+        self._ts_counter = itertools.count()
 
     def get_frames_per_point(self):
         return self.parent.cam.num_images.get()
@@ -57,8 +73,12 @@ class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
         # don't re-write the "normal" code path .... yet
         super()._generate_resource(resource_kwargs)
         fn = PurePath(self._fn).relative_to(self.reg_root)
+
+        # Update the shape that describe() will report.
+        self.time_stamp.shape = [self.get_frames_per_point()]
+        
         resource, self._ts_datum_factory = resource_factory(
-            spec="AD_HDF5_TIMESTAMP_V0",
+            spec="AD_HDF5_TS",
             root=str(self.reg_root),
             resource_path=str(fn),
             resource_kwargs=resource_kwargs,
@@ -69,8 +89,10 @@ class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
         self._asset_docs_cache.append(("resource", resource))
 
     def generate_datum(self, key, timestamp, datum_kwargs):
-        # again, don't re-work the
+        # again, don't re-work the normal code path... yet
         ret = super().generate_datum(key, timestamp, datum_kwargs)
+        datum_kwargs = datum_kwargs or {}
+        datum_kwargs.update({'point_number': next(self._ts_counter)})
         # make the timestamp datum, in this case we know they match
         datum = self._ts_datum_factory(datum_kwargs)
         datum_id = datum["datum_id"]
@@ -279,7 +301,7 @@ Andor.hdf5._reg = db.reg
 Andor.read_attrs = ["hdf5", "stats1"]
 Andor.stats1.read_attrs = ["total"]
 # Andor.stats5.read_attrs = ['total']
-Andor.hdf5.read_attrs = []
+Andor.hdf5.read_attrs = ["time_stamp"]
 Andor.stage_sigs["cam.image_mode"] = 0
 for k in ("image", "stats1", "trans1", "roi1", "proc1"):
     getattr(Andor, k).ensure_nonblocking()
