@@ -1,5 +1,9 @@
-from ophyd import Component as Cpt
-from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
+from ophyd import Component as Cpt, Signal
+from ophyd.areadetector.filestore_mixins import (
+    FileStoreHDF5IterativeWrite,
+    resource_factory,
+)
+from pathlib import PurePath
 from ophyd import EpicsSignal, AreaDetector
 from ophyd import (
     ImagePlugin,
@@ -34,6 +38,12 @@ class AndorCam(CamV33Mixin, AreaDetectorCam):
 class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
     # AD v2.2.0 (at least) does not have this. It is present in v1.9.1.
     file_number_sync = None
+    time_stamp = Cpt(Signal, value="", kind="normal")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._ts_datum_factory = None
+        self._ts_resource_uid = ""
 
     def get_frames_per_point(self):
         return self.parent.cam.num_images.get()
@@ -42,6 +52,35 @@ class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
         # stash this so that it is available on resume
         self._ret = super().make_filename()
         return self._ret
+
+    def _generate_resource(self, resource_kwargs):
+        # don't re-write the "normal" code path .... yet
+        super()._generate_resource(resource_kwargs)
+        fn = PurePath(self._fn).relative_to(self.reg_root)
+        resource, self._ts_datum_factory = resource_factory(
+            spec="AD_HDF5_TIMESTAMP_V0",
+            root=str(self.reg_root),
+            resource_path=str(fn),
+            resource_kwargs=resource_kwargs,
+            path_semantics=self.path_semantics,
+        )
+
+        self._ts_resource_uid = resource["uid"]
+        self._asset_docs_cache.append(("resource", resource))
+
+    def generate_datum(self, key, timestamp, datum_kwargs):
+        # again, don't re-work the
+        ret = super().generate_datum(key, timestamp, datum_kwargs)
+        # make the timestamp datum, in this case we know they match
+        datum = self._ts_datum_factory(datum_kwargs)
+        datum_id = datum["datum_id"]
+
+        # stash so that we can collect later
+        self._asset_docs_cache.append(("datum", datum))
+        # put in the soft-signal so it get auto-read later
+        self.time_stamp.put(datum_id)
+        # yes, just return one to avoid breaking the API
+        return ret
 
 
 class AndorKlass(SingleTriggerV33, DetectorBase):
