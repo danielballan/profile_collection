@@ -3,25 +3,16 @@ from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
 from ophyd import EpicsSignal, AreaDetector
 from ophyd import (
     ImagePlugin,
-    StatsPlugin,
     TransformPlugin,
     ROIPlugin,
     HDF5Plugin,
     ProcessPlugin,
 )
 
-from ophyd.areadetector.plugins import HDF5Plugin, ProcessPlugin
-from ophyd.areadetector.filestore_mixins import FileStoreHDF5IterativeWrite
-from ophyd.areadetector.trigger_mixins import (
-    TriggerBase,
-    ADTriggerStatus,
-    SingleTrigger,
-)
-from ophyd import Component as Cpt, Device, EpicsSignal, EpicsSignalRO
+from ophyd.areadetector.trigger_mixins import SingleTrigger
+
 from ophyd.areadetector.cam import AreaDetectorCam
 from ophyd.areadetector.detectors import DetectorBase
-from ophyd.device import Staged
-import time as ttime
 from nslsii.ad33 import SingleTriggerV33, StatsPluginV33, CamV33Mixin
 
 
