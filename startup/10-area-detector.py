@@ -305,6 +305,7 @@ Andor.hdf5.read_attrs = ["time_stamp"]
 Andor.stage_sigs["cam.image_mode"] = 0
 for k in ("image", "stats1", "trans1", "roi1", "proc1"):
     getattr(Andor, k).ensure_nonblocking()
+Andor.hdf5.time_stamp.name = 'Andor_timestamps'
 
 
 vlm = Manta("XF:18IDB-BI{VLM:1}", name="vlm")
