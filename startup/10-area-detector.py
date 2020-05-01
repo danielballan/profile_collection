@@ -59,7 +59,11 @@ class HDF5PluginWithFileStore(HDF5Plugin, FileStoreHDF5IterativeWrite):
         super().__init__(*args, **kwargs)
         self._ts_datum_factory = None
         self._ts_resource_uid = ""
+        self._ts_counter = None
+    
+    def stage(self):
         self._ts_counter = itertools.count()
+        return super().stage()
 
     def get_frames_per_point(self):
         return self.parent.cam.num_images.get()

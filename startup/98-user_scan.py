@@ -758,144 +758,111 @@ def multi_pos_2D_and_3D_xanes(
     repeat_num=1,
     note="",
     relative_move_flag=0,
-    simu=False,
-):
+    simu=False):
 
+    xanes2D = {}
+    xanes3D = {}
     for kk in range(repeat_num):
         for elem in elements:
             ### if there is a filter combination is defined for the element
-            find = False
-            defined = False
-            for flt_elem, flt_com in filters.items():
-                if elem.split("_")[0] == flt_elem.split("_")[0]:
-                    find = True
-            if find is False:
-                print("There is not filters defined for ", elem, "!")
-                sys.exit(1)
-
-            ### if there are 2D_sam_in and 2D_sam_out positions defined for the element
-            find = False
-            for in_elem, flt_com in sam_in_pos_list_2D.items():
-                if elem.split("_")[0] == in_elem.split("_")[0]:
-                    find = True
-            if find:
-                find = False
-                for out_elem, flt_com in sam_out_pos_list_2D.items():
-                    if elem.split("_")[0] == out_elem.split("_")[0]:
-                        find = True
-                if find is False:
-                    print(
-                        elem, "2D_in_pos_list and", elem, "2D_in_pos_list dont match!"
-                    )
-                    sys.exit(1)
-            if find:
-                find = False
-                for exp_elem, exp in exposure_time_2D.items():
-                    print(1, elem.split("_"), exp_elem.split("_"), find)
-                    if elem.split("_")[0] == exp_elem.split("_")[0]:
-                        find = True
-                if find is False:
-                    print(2, elem.split("_"), exp_elem.split("_"))
-                    print("There is not exposure_time_2D defined for", elem)
-                    sys.exit(1)
-            if find:
-                defined = True
-
-            ### if there are 3D_sam_in and 3D_sam_out positions defined for the element
-            find = False
-            for in_elem, flt_com in sam_in_pos_list_3D.items():
-                if elem.split("_")[0] == in_elem.split("_")[0]:
-                    find = True
-            if find:
-                find = False
-                for out_elem, flt_com in sam_out_pos_list_3D.items():
-                    if elem.split("_")[0] == out_elem.split("_")[0]:
-                        find = True
-                if find is False:
-                    print(
-                        elem, "3D_in_pos_list and", elem, "3D_in_pos_list dont match!"
-                    )
-                    sys.exit(1)
-            if find:
-                find = False
-                for exp_elem, exp in exposure_time_3D.items():
-                    if elem.split("_")[0] == exp_elem.split("_")[0]:
-                        find = True
-                if find is False:
-                    print("There is not exposure_time_3D defined for", elem)
-                    sys.exit(1)
-            if find:
-                defined = True
-
-            if not defined:
-                print("There is neither 2D nor 3D position list defined for", elem)
+            for key, item in sam_in_pos_list_2D.items():
+                if elem.split("_")[0] == key.split("_")[0]:
+                    xanes2D[elem+'_2D'] = {}
+                    xanes2D[elem+'_2D']['eng'] = elem
+                    xanes2D[elem+'_2D']['in_pos'] =  item
+                    xanes2D[elem+'_2D']['in_pos_defined'] =  True
+            for key, item in filters.items():
+                if elem.split("_")[0] == key.split("_")[0]:
+                    xanes2D[elem+'_2D']['filter'] = item
+                else:
+                    xanes2D[elem+'_2D']['filter'] = []
+            for key, item in sam_out_pos_list_2D.items():
+                if elem.split("_")[0] == key.split("_")[0]:
+                    xanes2D[elem+'_2D']['out_pos'] =  item
+                    xanes2D[elem+'_2D']['out_pos_defined'] =  True
+            for key, item in exposure_time_2D.items():
+                if elem.split("_")[0] == key.split("_")[0]:
+                    xanes2D[elem+'_2D']['exposure'] =  item
+                    xanes2D[elem+'_2D']['exposure_defined'] =  True
+            if not (xanes2D[elem+'_2D']['in_pos_defined'] &
+                    xanes2D[elem+'_2D']['out_pos_defined'] &
+                    xanes2D[elem+'_2D']['exposure_defined']):
+                print(elem+' 2D scan setup is not correct. Quit.')
                 sys.exit()
-
         for elem in elements:
-            select_filters(filters[elem.split("_")[0] + "_filters"])
-
-            if ii.split("_")[1] == "wl":
-                eng_list = np.genfromtxt(
-                    "/NSLS2/xf18id1/SW/xanes_ref/"
-                    + ii.split("_")[0]
-                    + "/eng_list_"
-                    + ii.split("_")[0]
-                    + "_s_xanes_standard_21pnt.txt"
-                )
-            elif ii.split("_")[1] == "101":
-                eng_list = np.genfromtxt(
-                    "/NSLS2/xf18id1/SW/xanes_ref/"
-                    + ii
-                    + "/eng_list_"
-                    + ii
-                    + "_xanes_standard_101pnt.txt"
-                )
-            elif ii.split("_")[1] == "63":
-                eng_list = np.genfromtxt(
-                    "/NSLS2/xf18id1/SW/xanes_ref/"
-                    + ii
-                    + "/eng_list_"
-                    + ii
-                    + "_xanes_standard_63pnt.txt"
-                )
-
-            if sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]:
-                x_list_2D = np.asarray(
-                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
-                )[0, :]
-                y_list_2D = np.asarray(
-                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
-                )[1, :]
-                z_list_2D = np.asarray(
-                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
-                )[2, :]
-                r_list_2D = np.asarray(
-                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
-                )[3, :]
-                if sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]:
-                    out_x_2D = np.asarray(
-                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
-                    )[0, :]
-                    out_y_2D = np.asarray(
-                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
-                    )[1, :]
-                    out_z_2D = np.asarray(
-                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
-                    )[2, :]
-                    out_r_2D = np.asarray(
-                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
-                    )[3, :]
+            ### if there is a filter combination is defined for the element
+            for key, item in sam_in_pos_list_3D.items():
+                if elem.split("_")[0] == key.split("_")[0]:
+                    xanes3D[elem+'_3D'] = {}
+                    xanes3D[elem+'_3D']['eng'] = elem
+                    xanes3D[elem+'_3D']['in_pos'] =  item
+                    xanes3D[elem+'_3D']['in_pos_defined'] =  True
+            for key, item in filters.items():
+                if elem.split("_")[0] == key.split("_")[0]:
+                    xanes3D[elem+'_3D']['filter'] = item
                 else:
-                    print(elem, "_2D_out_pos_list is not defined!")
-                    sys.exit(1)
+                    xanes3D[elem+'_3D']['filter'] = []
+            for key, item in sam_out_pos_list_3D.items():
+                if elem.split("_")[0] == key.split("_")[0]:
+                    xanes3D[elem+'_3D']['out_pos'] =  item
+                    xanes3D[elem+'_3D']['out_pos_defined'] =  True
+            for key, item in exposure_time_3D.items():
+                if elem.split("_")[0] == key.split("_")[0]:
+                    xanes3D[elem+'_3D']['exposure'] =  item
+                    xanes3D[elem+'_3D']['exposure_defined'] =  True
+            if not (xanes3D[elem+'_3D']['in_pos_defined'] &
+                    xanes3D[elem+'_3D']['out_pos_defined'] &
+                    xanes3D[elem+'_3D']['exposure_defined']):
+                print(elem+' 3D scan setup is not correct. Quit.')
+                sys.exit()
+    for elem2D in xanes2D:
+        x_list_2D = []
+        y_list_2D = []
+        z_list_2D = []
+        r_list_2D = []
+        out_x_2D = []
+        out_y_2D = []
+        out_z_2D = []
+        out_r_2D = []
+        for inpos in elem2D['in_pos']:
+            x_list_2D.append(inpos[0])
+            y_list_2D.append(inpos[1])
+            z_list_2D.append(inpos[2])
+            r_list_2D.append(inpos[3])
+        for outpos in elem2D['out_pos']:
+            out_x_2D.append(outpos[0])
+            out_y_2D.append(outpos[1])
+            out_z_2D.append(outpos[2])
+            out_r_2D.append(outpos[3])
+        if len(x_list_2D) != len(out_x_2D):
+            print('x_list_2D and out_x_2D are not equal in length. Quit.')
+            sys.exit()
 
-                if exposure_time_2D[elem.split("_")[0] + "_2D_exp"]:
-                    exp_2D = exposure_time_2D[elem.split("_")[0] + "_2D_exp"]
-                else:
-                    print(elem, "_2D_exp is not defined!")
-                    sys.exit(1)
+        select_filters(elem2D['filter'])
 
-                yield from multipos_2D_xanes_scan2(
+        if elem2D['eng'].split("_")[-1] == "wl":
+            eng_list = np.genfromtxt(
+                "/NSLS2/xf18id1/SW/xanes_ref/"
+                + elem2D['eng'].split("_")[0]
+                + "/eng_list_"
+                + elem2D['eng'].split("_")[0]
+                + "_s_xanes_standard_21pnt.txt")
+        elif  elem2D['eng'].split("_")[-1] == "101":
+            eng_list = np.genfromtxt(
+                "/NSLS2/xf18id1/SW/xanes_ref/"
+                + elem2D['eng'].split("_")
+                + "/eng_list_"
+                + elem2D['eng'].split("_")
+                + "_xanes_standard_101pnt.txt")
+        elif  elem2D['eng'].split("_")[-1] == "63":
+            eng_list = np.genfromtxt(
+                "/NSLS2/xf18id1/SW/xanes_ref/"
+                + elem2D['eng'].split("_")
+                + "/eng_list_"
+                + elem2D['eng'].split("_")
+                + "_xanes_standard_63pnt.txt")
+            
+        yield from multipos_2D_xanes_scan2(
                     eng_list,
                     x_list_2D,
                     y_list_2D,
@@ -905,77 +872,513 @@ def multi_pos_2D_and_3D_xanes(
                     out_y=out_y_2D,
                     out_z=out_z_2D,
                     out_r=out_r_2D,
-                    exposure_time=exp_2D,
+                    exposure_time=elem2D['exposure'],
                     chunk_size=5,
                     simu=simu,
                     relative_move_flag=relative_move_flag,
                     note=note,
                     md=None,
                     sleep_time=0,
-                    repeat_num=1,
-                )
+                    repeat_num=1)
+            
+    for elem3D in xanes3D:
+        x_list_3D = []
+        y_list_3D = []
+        z_list_3D = []
+        r_list_3D = []
+        out_x_3D = []
+        out_y_3D = []
+        out_z_3D = []
+        out_r_3D = []
+        for inpos in elem3D['in_pos']:
+            x_list_3D.append(inpos[0])
+            y_list_3D.append(inpos[1])
+            z_list_3D.append(inpos[2])
+            r_list_3D.append(inpos[3])
+        for outpos in elem3D['out_pos']:
+            out_x_3D.append(outpos[0])
+            out_y_3D.append(outpos[1])
+            out_z_3D.append(outpos[2])
+            out_r_3D.append(outpos[3])
+        if len(x_list_3D) != len(out_x_3D):
+            print('x_list_3D and out_x_3D are not equal in length. Quit.')
+            sys.exit()
 
-            if sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]:
-                x_list_3D = np.asarray(
-                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
-                )[0, :]
-                y_list_3D = np.asarray(
-                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
-                )[1, :]
-                z_list_3D = np.asarray(
-                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
-                )[2, :]
-                r_list_3D = np.asarray(
-                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
-                )[3, :]
-                if sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]:
-                    out_x_3D = np.asarray(
-                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
-                    )[0, :]
-                    out_y_3D = np.asarray(
-                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
-                    )[1, :]
-                    out_z_3D = np.asarray(
-                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
-                    )[2, :]
-                    out_r_3D = np.asarray(
-                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
-                    )[3, :]
-                else:
-                    print(elem, "_3D_out_pos_list is not defined!")
-                    sys.exit(1)
-                if exposure_time_3D[elem.split("_")[0] + "_3D_exp"]:
-                    exp_3D = exposure_time_3D[elem.split("_")[0] + "_3D_exp"]
-                else:
-                    print(elem, "_3D_exp is not defined!")
-                    sys.exit(1)
+        select_filters(elem3D['filter'])
 
-                yield from multi_pos_xanes_3D(
-                    eng_list,
-                    x_list_3D,
-                    y_list_3D,
-                    z_list_3D,
-                    r_list_3D,
-                    exposure_time=exp_3D,
-                    relative_rot_angle=relative_rot_angle,
-                    rs=rs,
-                    out_x=out_x_3D,
-                    out_y=out_y_3D,
-                    out_z=out_z_3D,
-                    out_r=out_r_3D,
-                    note=note,
-                    simu=simu,
-                    relative_move_flag=relative_move_flag,
-                    traditional_sequence_flag=1,
-                    sleep_time=0,
-                    repeat=1,
-                )
+        if elem3D['eng'].split("_")[-1] == "wl":
+            eng_list = np.genfromtxt(
+                "/NSLS2/xf18id1/SW/xanes_ref/"
+                + elem3D['eng'].split("_")[0]
+                + "/eng_list_"
+                + elem3D['eng'].split("_")[0]
+                + "_s_xanes_standard_21pnt.txt")
+        elif  elem3D['eng'].split("_")[-1] == "101":
+            eng_list = np.genfromtxt(
+                "/NSLS2/xf18id1/SW/xanes_ref/"
+                + elem3D['eng'].split("_")
+                + "/eng_list_"
+                + elem3D['eng'].split("_")
+                + "_xanes_standard_101pnt.txt")
+        elif  elem3D['eng'].split("_")[-1] == "63":
+            eng_list = np.genfromtxt(
+                "/NSLS2/xf18id1/SW/xanes_ref/"
+                + elem3D['eng'].split("_")
+                + "/eng_list_"
+                + elem3D['eng'].split("_")
+                + "_xanes_standard_63pnt.txt")
+            
+        yield from multi_pos_xanes_3D(
+            eng_list,
+            x_list_3D,
+            y_list_3D,
+            z_list_3D,
+            r_list_3D,
+            exposure_time==elem3D['exposure'],
+            relative_rot_angle=relative_rot_angle,
+            rs=rs,
+            out_x=out_x_3D,
+            out_y=out_y_3D,
+            out_z=out_z_3D,
+            out_r=out_r_3D,
+            note=note,
+            simu=simu,
+            relative_move_flag=relative_move_flag,
+            traditional_sequence_flag=1,
+            sleep_time=0,
+            repeat=1)
+                    
+                    
+            
+#            find = False
+#            defined = False
+#            for flt_elem in filters.keys():
+#                if elem.split("_")[0] == flt_elem.split("_")[0]:
+#                    find = True
+#            if find is False:
+#                print("There is not filters defined for ", elem, "!")
+#                sys.exit(1)
+#
+#            ### if there are 2D_sam_in and 2D_sam_out positions defined for the element
+#            find = False
+#            for in_elem in sam_in_pos_list_2D.keys():
+#                if elem.split("_")[0] == in_elem.split("_")[0]:
+#                    find = True
+#            if find:
+#                find = False
+#                for out_elem in sam_out_pos_list_2D.keys():
+#                    if elem.split("_")[0] == out_elem.split("_")[0]:
+#                        find = True
+#                if find is False:
+#                    print(
+#                        elem, "2D_in_pos_list and", elem, "2D_in_pos_list dont match!"
+#                    )
+#                    sys.exit(1)
+#            if find:
+#                find = False
+#                for exp_elem in exposure_time_2D.keys():
+#                    print(1, elem.split("_"), exp_elem.split("_"), find)
+#                    if elem.split("_")[0] == exp_elem.split("_")[0]:
+#                        find = True
+#                if find is False:
+#                    print(2, elem.split("_"), exp_elem.split("_"))
+#                    print("There is not exposure_time_2D defined for", elem)
+#                    sys.exit(1)
+#            if find:
+#                defined = True
+#
+#            ### if there are 3D_sam_in and 3D_sam_out positions defined for the element
+#            find = False
+#            for in_elem in sam_in_pos_list_3D.keys():
+#                if elem.split("_")[0] == in_elem.split("_")[0]:
+#                    find = True
+#            if find:
+#                find = False
+#                for out_elem in sam_out_pos_list_3D.keys():
+#                    if elem.split("_")[0] == out_elem.split("_")[0]:
+#                        find = True
+#                if find is False:
+#                    print(
+#                        elem, "3D_in_pos_list and", elem, "3D_in_pos_list dont match!"
+#                    )
+#                    sys.exit(1)
+#            if find:
+#                find = False
+#                for exp_elem in exposure_time_3D.keys():
+#                    if elem.split("_")[0] == exp_elem.split("_")[0]:
+#                        find = True
+#                if find is False:
+#                    print("There is not exposure_time_3D defined for", elem)
+#                    sys.exit(1)
+#            if find:
+#                defined = True
+#
+#            if not defined:
+#                print("There is neither 2D nor 3D position list defined for", elem)
+#                sys.exit()
+#
+#        for elem in elements:
+#            select_filters(filters[elem.split("_")[0] + "_filters"])
+#
+#            if ii.split("_")[1] == "wl":
+#                eng_list = np.genfromtxt(
+#                    "/NSLS2/xf18id1/SW/xanes_ref/"
+#                    + ii.split("_")[0]
+#                    + "/eng_list_"
+#                    + ii.split("_")[0]
+#                    + "_s_xanes_standard_21pnt.txt"
+#                )
+#            elif ii.split("_")[1] == "101":
+#                eng_list = np.genfromtxt(
+#                    "/NSLS2/xf18id1/SW/xanes_ref/"
+#                    + ii
+#                    + "/eng_list_"
+#                    + ii
+#                    + "_xanes_standard_101pnt.txt"
+#                )
+#            elif ii.split("_")[1] == "63":
+#                eng_list = np.genfromtxt(
+#                    "/NSLS2/xf18id1/SW/xanes_ref/"
+#                    + ii
+#                    + "/eng_list_"
+#                    + ii
+#                    + "_xanes_standard_63pnt.txt"
+#                )
+#
+#            if sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]:
+#                x_list_2D = np.asarray(
+#                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
+#                )[0, :]
+#                y_list_2D = np.asarray(
+#                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
+#                )[1, :]
+#                z_list_2D = np.asarray(
+#                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
+#                )[2, :]
+#                r_list_2D = np.asarray(
+#                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
+#                )[3, :]
+#                if sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]:
+#                    out_x_2D = np.asarray(
+#                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
+#                    )[0, :]
+#                    out_y_2D = np.asarray(
+#                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
+#                    )[1, :]
+#                    out_z_2D = np.asarray(
+#                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
+#                    )[2, :]
+#                    out_r_2D = np.asarray(
+#                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
+#                    )[3, :]
+#                else:
+#                    print(elem, "_2D_out_pos_list is not defined!")
+#                    sys.exit(1)
+#
+#                if exposure_time_2D[elem.split("_")[0] + "_2D_exp"]:
+#                    exp_2D = exposure_time_2D[elem.split("_")[0] + "_2D_exp"]
+#                else:
+#                    print(elem, "_2D_exp is not defined!")
+#                    sys.exit(1)
+#
+#                yield from multipos_2D_xanes_scan2(
+#                    eng_list,
+#                    x_list_2D,
+#                    y_list_2D,
+#                    z_list_2D,
+#                    r_list_2D,
+#                    out_x=out_x_2D,
+#                    out_y=out_y_2D,
+#                    out_z=out_z_2D,
+#                    out_r=out_r_2D,
+#                    exposure_time=exp_2D,
+#                    chunk_size=5,
+#                    simu=simu,
+#                    relative_move_flag=relative_move_flag,
+#                    note=note,
+#                    md=None,
+#                    sleep_time=0,
+#                    repeat_num=1,
+#                )
+#
+#            if sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]:
+#                x_list_3D = np.asarray(
+#                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
+#                )[0, :]
+#                y_list_3D = np.asarray(
+#                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
+#                )[1, :]
+#                z_list_3D = np.asarray(
+#                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
+#                )[2, :]
+#                r_list_3D = np.asarray(
+#                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
+#                )[3, :]
+#                if sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]:
+#                    out_x_3D = np.asarray(
+#                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
+#                    )[0, :]
+#                    out_y_3D = np.asarray(
+#                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
+#                    )[1, :]
+#                    out_z_3D = np.asarray(
+#                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
+#                    )[2, :]
+#                    out_r_3D = np.asarray(
+#                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
+#                    )[3, :]
+#                else:
+#                    print(elem, "_3D_out_pos_list is not defined!")
+#                    sys.exit(1)
+#                if exposure_time_3D[elem.split("_")[0] + "_3D_exp"]:
+#                    exp_3D = exposure_time_3D[elem.split("_")[0] + "_3D_exp"]
+#                else:
+#                    print(elem, "_3D_exp is not defined!")
+#                    sys.exit(1)
+#
+#                yield from multi_pos_xanes_3D(
+#                    eng_list,
+#                    x_list_3D,
+#                    y_list_3D,
+#                    z_list_3D,
+#                    r_list_3D,
+#                    exposure_time=exp_3D,
+#                    relative_rot_angle=relative_rot_angle,
+#                    rs=rs,
+#                    out_x=out_x_3D,
+#                    out_y=out_y_3D,
+#                    out_z=out_z_3D,
+#                    out_r=out_r_3D,
+#                    note=note,
+#                    simu=simu,
+#                    relative_move_flag=relative_move_flag,
+#                    traditional_sequence_flag=1,
+#                    sleep_time=0,
+#                    repeat=1,
+#                )
+#
+#        if kk != (repeat_num - 1):
+#            print(
+#                f"We are in multi_pos_2D_and_3D_xanes cycle # {kk}; we are going to sleep for {sleep_time} seconds ..."
+#            )
+#            yield from bps.sleep(sleep_time)
 
-        if kk != (repeat_num - 1):
-            print(
-                f"We are in multi_pos_2D_and_3D_xanes cycle # {kk}; we are going to sleep for {sleep_time} seconds ..."
-            )
-            yield from bps.sleep(sleep_time)
+    
+#    for kk in range(repeat_num):
+#        for elem in elements:
+#            ### if there is a filter combination is defined for the element
+#            find = False
+#            defined = False
+#            for flt_elem in filters.keys():
+#                if elem.split("_")[0] == flt_elem.split("_")[0]:
+#                    find = True
+#            if find is False:
+#                print("There is not filters defined for ", elem, "!")
+#                sys.exit(1)
+#
+#            ### if there are 2D_sam_in and 2D_sam_out positions defined for the element
+#            find = False
+#            for in_elem in sam_in_pos_list_2D.keys():
+#                if elem.split("_")[0] == in_elem.split("_")[0]:
+#                    find = True
+#            if find:
+#                find = False
+#                for out_elem in sam_out_pos_list_2D.keys():
+#                    if elem.split("_")[0] == out_elem.split("_")[0]:
+#                        find = True
+#                if find is False:
+#                    print(
+#                        elem, "2D_in_pos_list and", elem, "2D_in_pos_list dont match!"
+#                    )
+#                    sys.exit(1)
+#            if find:
+#                find = False
+#                for exp_elem in exposure_time_2D.keys():
+#                    print(1, elem.split("_"), exp_elem.split("_"), find)
+#                    if elem.split("_")[0] == exp_elem.split("_")[0]:
+#                        find = True
+#                if find is False:
+#                    print(2, elem.split("_"), exp_elem.split("_"))
+#                    print("There is not exposure_time_2D defined for", elem)
+#                    sys.exit(1)
+#            if find:
+#                defined = True
+#
+#            ### if there are 3D_sam_in and 3D_sam_out positions defined for the element
+#            find = False
+#            for in_elem in sam_in_pos_list_3D.keys():
+#                if elem.split("_")[0] == in_elem.split("_")[0]:
+#                    find = True
+#            if find:
+#                find = False
+#                for out_elem in sam_out_pos_list_3D.keys():
+#                    if elem.split("_")[0] == out_elem.split("_")[0]:
+#                        find = True
+#                if find is False:
+#                    print(
+#                        elem, "3D_in_pos_list and", elem, "3D_in_pos_list dont match!"
+#                    )
+#                    sys.exit(1)
+#            if find:
+#                find = False
+#                for exp_elem in exposure_time_3D.keys():
+#                    if elem.split("_")[0] == exp_elem.split("_")[0]:
+#                        find = True
+#                if find is False:
+#                    print("There is not exposure_time_3D defined for", elem)
+#                    sys.exit(1)
+#            if find:
+#                defined = True
+#
+#            if not defined:
+#                print("There is neither 2D nor 3D position list defined for", elem)
+#                sys.exit()
+#
+#        for elem in elements:
+#            select_filters(filters[elem.split("_")[0] + "_filters"])
+#
+#            if ii.split("_")[1] == "wl":
+#                eng_list = np.genfromtxt(
+#                    "/NSLS2/xf18id1/SW/xanes_ref/"
+#                    + ii.split("_")[0]
+#                    + "/eng_list_"
+#                    + ii.split("_")[0]
+#                    + "_s_xanes_standard_21pnt.txt"
+#                )
+#            elif ii.split("_")[1] == "101":
+#                eng_list = np.genfromtxt(
+#                    "/NSLS2/xf18id1/SW/xanes_ref/"
+#                    + ii
+#                    + "/eng_list_"
+#                    + ii
+#                    + "_xanes_standard_101pnt.txt"
+#                )
+#            elif ii.split("_")[1] == "63":
+#                eng_list = np.genfromtxt(
+#                    "/NSLS2/xf18id1/SW/xanes_ref/"
+#                    + ii
+#                    + "/eng_list_"
+#                    + ii
+#                    + "_xanes_standard_63pnt.txt"
+#                )
+#
+#            if sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]:
+#                x_list_2D = np.asarray(
+#                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
+#                )[0, :]
+#                y_list_2D = np.asarray(
+#                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
+#                )[1, :]
+#                z_list_2D = np.asarray(
+#                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
+#                )[2, :]
+#                r_list_2D = np.asarray(
+#                    sam_in_pos_list_2D[elem.split("_")[0] + "_2D_in_pos_list"]
+#                )[3, :]
+#                if sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]:
+#                    out_x_2D = np.asarray(
+#                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
+#                    )[0, :]
+#                    out_y_2D = np.asarray(
+#                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
+#                    )[1, :]
+#                    out_z_2D = np.asarray(
+#                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
+#                    )[2, :]
+#                    out_r_2D = np.asarray(
+#                        sam_out_pos_list_2D[elem.split("_")[0] + "_2D_out_pos_list"]
+#                    )[3, :]
+#                else:
+#                    print(elem, "_2D_out_pos_list is not defined!")
+#                    sys.exit(1)
+#
+#                if exposure_time_2D[elem.split("_")[0] + "_2D_exp"]:
+#                    exp_2D = exposure_time_2D[elem.split("_")[0] + "_2D_exp"]
+#                else:
+#                    print(elem, "_2D_exp is not defined!")
+#                    sys.exit(1)
+#
+#                yield from multipos_2D_xanes_scan2(
+#                    eng_list,
+#                    x_list_2D,
+#                    y_list_2D,
+#                    z_list_2D,
+#                    r_list_2D,
+#                    out_x=out_x_2D,
+#                    out_y=out_y_2D,
+#                    out_z=out_z_2D,
+#                    out_r=out_r_2D,
+#                    exposure_time=exp_2D,
+#                    chunk_size=5,
+#                    simu=simu,
+#                    relative_move_flag=relative_move_flag,
+#                    note=note,
+#                    md=None,
+#                    sleep_time=0,
+#                    repeat_num=1,
+#                )
+#
+#            if sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]:
+#                x_list_3D = np.asarray(
+#                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
+#                )[0, :]
+#                y_list_3D = np.asarray(
+#                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
+#                )[1, :]
+#                z_list_3D = np.asarray(
+#                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
+#                )[2, :]
+#                r_list_3D = np.asarray(
+#                    sam_in_pos_list_3D[elem.split("_")[0] + "_3D_in_pos_list"]
+#                )[3, :]
+#                if sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]:
+#                    out_x_3D = np.asarray(
+#                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
+#                    )[0, :]
+#                    out_y_3D = np.asarray(
+#                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
+#                    )[1, :]
+#                    out_z_3D = np.asarray(
+#                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
+#                    )[2, :]
+#                    out_r_3D = np.asarray(
+#                        sam_out_pos_list_3D[elem.split("_")[0] + "_3D_out_pos_list"]
+#                    )[3, :]
+#                else:
+#                    print(elem, "_3D_out_pos_list is not defined!")
+#                    sys.exit(1)
+#                if exposure_time_3D[elem.split("_")[0] + "_3D_exp"]:
+#                    exp_3D = exposure_time_3D[elem.split("_")[0] + "_3D_exp"]
+#                else:
+#                    print(elem, "_3D_exp is not defined!")
+#                    sys.exit(1)
+#
+#                yield from multi_pos_xanes_3D(
+#                    eng_list,
+#                    x_list_3D,
+#                    y_list_3D,
+#                    z_list_3D,
+#                    r_list_3D,
+#                    exposure_time=exp_3D,
+#                    relative_rot_angle=relative_rot_angle,
+#                    rs=rs,
+#                    out_x=out_x_3D,
+#                    out_y=out_y_3D,
+#                    out_z=out_z_3D,
+#                    out_r=out_r_3D,
+#                    note=note,
+#                    simu=simu,
+#                    relative_move_flag=relative_move_flag,
+#                    traditional_sequence_flag=1,
+#                    sleep_time=0,
+#                    repeat=1,
+#                )
+#
+#        if kk != (repeat_num - 1):
+#            print(
+#                f"We are in multi_pos_2D_and_3D_xanes cycle # {kk}; we are going to sleep for {sleep_time} seconds ..."
+#            )
+#            yield from bps.sleep(sleep_time)
 
 
 def multi_pos_2D_xanes_and_3D_tomo(
@@ -2249,7 +2652,7 @@ def qingchao_scan(
             out_r=out_r,
             repeat_num=1,
             exposure_time=0.1,
-            sleep_time=0,
+            sleep_time=sleep_time,
             chunk_size=5,
             relative_move_flag=True,
             note="622_filter3+4",
@@ -2268,10 +2671,59 @@ def qingchao_scan(
             out_r=out_r,
             repeat_num=1,
             exposure_time=0.1,
-            sleep_time=0,
+            sleep_time=sleep_time,
             chunk_size=5,
             relative_move_flag=True,
             note="622_filter4",
         )
         print(f"slepp for {sleep_time} sec ...")
         yield from bps.sleep(sleep_time)
+
+
+
+def ming():
+    for i in range(2):
+        yield from multipos_2D_xanes_scan2(Ni_list_2D,x_list,y_list,z_list,r_list,out_x=None,out_y=None,out_z=950,out_r=-90,exposure_time=0.1,repeat_num=3,sleep_time=600,relative_move_flag=0,chunk_size=5,simu=False,note='N83_insitu_pristine_filter_2+3+4')
+        yield from movpos(2, x_list, y_list, z_list, r_list)
+        yield from mv(zps.pi_r, -70)
+        yield from xanes_3D(Ni_list_3D, exposure_time=0.1, relative_rot_angle=140, period=0.1, out_x=None, out_y=None, out_z=2500, out_r=-20, rs=3, simu=False, relative_move_flag=1, note='N83_pos2')
+        yield from mv(zps.pi_r, 0)
+ 
+        yield from multipos_2D_xanes_scan2(Ni_list_2D,x_list,y_list,z_list,r_list,out_x=None,out_y=None,out_z=950,out_r=-90,exposure_time=0.1,repeat_num=3,sleep_time=600,relative_move_flag=0,chunk_size=5,simu=False,note='N83_insitu_pristine_filter_2+3+4')
+        yield from movpos(4, x_list, y_list, z_list, r_list)
+        yield from mv(zps.pi_r, -70)
+        yield from xanes_3D(Ni_list_3D, exposure_time=0.1, relative_rot_angle=145, period=0.1, out_x=None, out_y=None, out_z=2500, out_r=-20, rs=3, simu=False, relative_move_flag=1, note='N83_pos4')
+        yield from mv(zps.pi_r, 0)
+
+    insert_text('take xanes of full_eng_list')
+    for i in range(1):
+        yield from multipos_2D_xanes_scan2(Ni_eng_list_63pnt,x_list,y_list,z_list,r_list,out_x=None,out_y=None,out_z=950,out_r=-90,exposure_time=0.1,repeat_num=3,sleep_time=600,relative_move_flag=0,chunk_size=5,simu=False,note='N83_insitu_pristine_filter_2+3+4')
+        
+        for j in range(4):
+            insert_text(f'taking 3D xanes at pos{j}\n')
+            yield from movpos(j, x_list, y_list, z_list, r_list)
+            yield from mv(zps.pi_r, -70)
+            yield from xanes_3D(Ni_list_3D, exposure_time=0.1, relative_rot_angle=140, period=0.1, out_x=None, out_y=None, out_z=2500, out_r=-20, rs=3, simu=False, relative_move_flag=1, note=f'N83_pos{j}')
+            yield from mv(zps.pi_r, 0)
+
+    for i in range(4):
+        yield from multipos_2D_xanes_scan2(Ni_list_2D,x_list,y_list,z_list,r_list,out_x=None,out_y=None,out_z=950,out_r=-90,exposure_time=0.1,repeat_num=3,sleep_time=600,relative_move_flag=0,chunk_size=5,simu=False,note='N83_insitu_pristine_filter_2+3+4')
+        yield from movpos(2, x_list, y_list, z_list, r_list)
+        yield from mv(zps.pi_r, -70)
+        yield from xanes_3D(Ni_list_3D, exposure_time=0.1, relative_rot_angle=140, period=0.1, out_x=None, out_y=None, out_z=2500, out_r=-20, rs=3, simu=False, relative_move_flag=1, note='N83_pos2')
+        yield from mv(zps.pi_r, 0)
+ 
+        yield from multipos_2D_xanes_scan2(Ni_list_2D,x_list,y_list,z_list,r_list,out_x=None,out_y=None,out_z=950,out_r=-90,exposure_time=0.1,repeat_num=3,sleep_time=600,relative_move_flag=0,chunk_size=5,simu=False,note='N83_insitu_pristine_filter_2+3+4')
+        yield from movpos(4, x_list, y_list, z_list, r_list)
+        yield from mv(zps.pi_r, -70)
+        yield from xanes_3D(Ni_list_3D, exposure_time=0.1, relative_rot_angle=145, period=0.1, out_x=None, out_y=None, out_z=2500, out_r=-20, rs=3, simu=False, relative_move_flag=1, note='N83_pos4')
+        yield from mv(zps.pi_r, 0)    
+
+    
+        
+        
+
+
+
+
+

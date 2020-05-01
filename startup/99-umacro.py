@@ -432,6 +432,16 @@ Cu_eng_list_wl = np.genfromtxt(
     "/NSLS2/xf18id1/SW/xanes_ref/Cu/eng_list_Cu_s_xanes_standard_21pnt.txt"
 )
 
+Zn_eng_list_101pnt = np.genfromtxt(
+    "/NSLS2/xf18id1/SW/xanes_ref/Zn/eng_list_Zn_xanes_standard_101pnt.txt"
+)
+Zn_eng_list_63pnt = np.genfromtxt(
+    "/NSLS2/xf18id1/SW/xanes_ref/Zn/eng_list_Zn_xanes_standard_63pnt.txt"
+)
+Zn_eng_list_wl = np.genfromtxt(
+    "/NSLS2/xf18id1/SW/xanes_ref/Zn/eng_list_Zn_s_xanes_standard_21pnt.txt"
+)
+
 
 # def scan_3D_2D_overnight(n):
 #

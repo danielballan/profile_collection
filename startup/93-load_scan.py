@@ -18,14 +18,15 @@ def write_lakeshore_to_file(h, fname):
             break
 
 
-def export_scan(scan_id, scan_id_end=None, binning=4):
-    """
+def export_scan(scan_id, scan_id_end=None, binning=4, date_end_by=None):
+    '''
     e.g. load_scan([0001, 0002]) 
-    """
+    '''
     if scan_id_end is None:
-        for item in scan_id:
+        for item in scan_id:        
             try:
-                export_single_scan(int(item), binning)
+                #export_single_scan(int(item), binning)
+                custom_export(int(item), binning, date_end_by=date_end_by)  
             except Exception as ex:
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                 message = template.format(type(ex).__name__, ex.args)
@@ -33,9 +34,10 @@ def export_scan(scan_id, scan_id_end=None, binning=4):
                 continue
             db.reg.clear_process_cache()
     else:
-        for i in range(scan_id, scan_id_end + 1):
+        for i in range(scan_id, scan_id_end+1):
             try:
-                export_single_scan(int(i), binning)
+                #export_single_scan(int(i), binning)
+                custom_export(int(item), binning, date_end_by=date_end_by)
             except Exception as ex:
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                 message = template.format(type(ex).__name__, ex.args)
@@ -43,6 +45,24 @@ def export_scan(scan_id, scan_id_end=None, binning=4):
                 continue
             db.reg.clear_process_cache()
 
+
+def custom_export(scan_id, binning=4, date_end_by=None):
+    '''
+    date_end_by: string, e.g., '2020-01-20'
+    '''
+    tmp = list(db(scan_id = scan_id))
+    n = len(tmp)    
+    if date_end_by is None:
+        export_single_scan(scan_id, binning)
+    else:
+        for sid in tmp:
+            uid = sid.start['uid']
+            timestamp = sid.start['time']
+            ts = pd.to_datetime(timestamp, unit='s').tz_localize('US/Eastern') 
+            date_end = covert_date_to_datetime(date_end_by)
+            if ts < date_end:      
+                export_single_scan(uid, binning)
+                break
 
 def export_single_scan(scan_id=-1, binning=4):
     h = db[scan_id]
@@ -98,7 +118,7 @@ def export_single_scan(scan_id=-1, binning=4):
     elif scan_type == "delay_scan":
         print("exporting delay_scan #{}".format(scan_id))
         export_delay_scan(h)
-    elif scan_type == "user_fly_only":
+    elif scan_type in ("user_fly_only", "dmea_fly_only"):
         print("exporting user_fly_only #{}".format(scan_id))
         export_user_fly_only(h)
     else:
@@ -158,6 +178,10 @@ def export_fly_scan(h):
     y_pos = h.table("baseline")["zps_sy"][1]
     z_pos = h.table("baseline")["zps_sz"][1]
     r_pos = h.table("baseline")["zps_pi_r"][1]
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
 
     try:
         x_eng = h.start["XEng"]
@@ -224,8 +248,10 @@ def export_fly_scan(h):
     mot_pos_interp = np.interp(img_time, mot_time, mot_pos)
 
     pos2 = mot_pos_interp.argmax() + 1
-    img_angle = mot_pos_interp[: pos2 - chunk_size]  # rotation angles
-    img_tomo = imgs[: pos2 - chunk_size]  # tomo images
+    #img_angle = mot_pos_interp[: pos2 - chunk_size]  # rotation angles
+    img_angle = mot_pos_interp[: pos2]
+    #img_tomo = imgs[: pos2 - chunk_size]  # tomo images
+    img_tomo = imgs[: pos2]
 
     fname = scan_type + "_id_" + str(scan_id) + ".h5"
 
@@ -245,6 +271,8 @@ def export_fly_scan(h):
         hf.create_dataset("y_ini", data=y_pos)
         hf.create_dataset("z_ini", data=z_pos)
         hf.create_dataset("r_ini", data=r_pos)
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(str(pxl_sz)+'nm')) 
 
     try:
         write_lakeshore_to_file(h, fname)
@@ -258,6 +286,10 @@ def export_fly_scan(h):
 
 
 def export_xanes_scan(h):
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
     scan_type = h.start["plan_name"]
     #    scan_type = 'xanes_scan'
     uid = h.start["uid"]
@@ -313,6 +345,8 @@ def export_xanes_scan(h):
         hf.create_dataset("img_bkg", data=np.array(img_bkg_avg, dtype=np.float32))
         hf.create_dataset("img_dark", data=np.array(img_dark_avg, dtype=np.float32))
         hf.create_dataset("img_xanes", data=np.array(img_xanes_norm, dtype=np.float32))
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
 
     try:
         write_lakeshore_to_file(h, fname)
@@ -324,6 +358,10 @@ def export_xanes_scan(h):
 
 
 def export_z_scan(h):
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
     scan_type = h.start["plan_name"]
     scan_id = h.start["scan_id"]
     uid = h.start["uid"]
@@ -352,6 +390,8 @@ def export_z_scan(h):
         hf.create_dataset("img_dark", data=img_dark)
         hf.create_dataset("img", data=img_zscan)
         hf.create_dataset("img_norm", data=img_norm)
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
 
     try:
         write_lakeshore_to_file(h, fname)
@@ -362,6 +402,10 @@ def export_z_scan(h):
 
 
 def export_z_scan2(h):
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
     scan_type = h.start["plan_name"]
     scan_id = h.start["scan_id"]
     uid = h.start["uid"]
@@ -395,6 +439,8 @@ def export_z_scan2(h):
         hf.create_dataset("img_dark", data=img_dark)
         hf.create_dataset("img", data=img_zscan)
         hf.create_dataset("img_norm", data=np.array(img_norm, dtype=np.float32))
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
 
     try:
         write_lakeshore_to_file(h, fname)
@@ -405,6 +451,10 @@ def export_z_scan2(h):
 
 
 def export_test_scan(h):
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
     import tifffile
 
     scan_type = h.start["plan_name"]
@@ -437,6 +487,8 @@ def export_test_scan(h):
         hf.create_dataset("img_dark", data=img_dark)
         hf.create_dataset("img", data=np.array(img_test, dtype=np.float32))
         hf.create_dataset("img_norm", data=np.array(img_norm, dtype=np.float32))
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
     #    tifffile.imsave(fname_tif, img_norm)
 
     try:
@@ -451,6 +503,16 @@ def export_count_img(h):
     """
     load images (e.g. RE(count([Andor], 10)) ) and save to .h5 file
     """
+    try:
+        zp_z_pos = h.table("baseline")["zp_z"][1]
+        DetU_z_pos = h.table("baseline")["DetU_z"][1]
+        M = (DetU_z_pos/zp_z_pos - 1)*10.
+        pxl_sz = 6500./M
+    except:
+        M = 0
+        pxl_sz = 0
+        print('fails to calculate magnification and pxl size')
+        
     uid = h.start["uid"]
     det = h.start["detectors"][0]
     img = get_img(h, det)
@@ -460,8 +522,10 @@ def export_count_img(h):
         hf.create_dataset("img", data=img.astype(np.float32))
         hf.create_dataset("uid", data=uid)
         hf.create_dataset("scan_id", data=scan_id)
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
     try:
-        write_lakeshore_to_file(h, fname)
+        write_lakeshore_to_file(h, fn)
     except:
         print("fails to write lakeshore info into {fname}")
 
@@ -477,6 +541,10 @@ def export_delay_scan(h):
     mot_start = h.start["plan_args"]["start"]
     mot_stop = h.start["plan_args"]["stop"]
     mot_steps = h.start["plan_args"]["steps"]
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
     if det == "detA1" or det == "Andor":
         img = get_img(h, det)
         fname = scan_type + "_id_" + str(scan_id) + ".h5"
@@ -490,6 +558,8 @@ def export_delay_scan(h):
             hf.create_dataset("stop", data=mot_stop)
             hf.create_dataset("steps", data=mot_steps)
             hf.create_dataset("motor", data=mot_name)
+            hf.create_dataset("Magnification", data=M)
+            hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
         try:
             write_lakeshore_to_file(h, fname)
         except:
@@ -505,6 +575,10 @@ def export_multipos_count(h):
     num_dark = h.start["num_dark_images"]
     num_of_position = h.start["num_of_position"]
     note = h.start["note"]
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
 
     img_raw = list(h.data("Andor_image"))
     img_dark = np.squeeze(np.array(img_raw[:num_dark]))
@@ -530,6 +604,8 @@ def export_multipos_count(h):
         hf.create_dataset("uid", data=uid)
         hf.create_dataset("scan_id", data=scan_id)
         hf.create_dataset("note", data=str(note))
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
         for i in range(num_of_position):
             hf.create_dataset(f"img_pos{i+1}", data=np.squeeze(img_group[i]))
     try:
@@ -539,6 +615,10 @@ def export_multipos_count(h):
 
 
 def export_grid2D_rel(h):
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
     uid = h.start["uid"]
     note = h.start["note"]
     scan_type = "grid2D_rel"
@@ -580,6 +660,10 @@ def export_raster_2D_2(h, binning=4):
     img_sizeX = h.start["plan_args"]["img_sizeX"]
     img_sizeY = h.start["plan_args"]["img_sizeY"]
     pix = h.start["plan_args"]["pxl"]
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
 
     img_raw = np.squeeze(np.array(list(h.data("Andor_image"))))
     img_dark_avg = np.mean(img_raw[:num_dark], axis=0, keepdims=True)
@@ -656,6 +740,8 @@ def export_raster_2D_2(h, binning=4):
         hf.create_dataset("img_dark", data=np.array(img_dark_avg, np.float32))
         hf.create_dataset("img_bkg", data=np.array(img_bkg_avg, np.float32))
         hf.create_dataset("XEng", data=x_eng)
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
     try:
         write_lakeshore_to_file(h, fn_h5_save)
     except:
@@ -678,6 +764,10 @@ def export_raster_2D(h, binning=4):
     img_sizeX = h.start["plan_args"]["img_sizeX"]
     img_sizeY = h.start["plan_args"]["img_sizeY"]
     pix = h.start["plan_args"]["pxl"]
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
 
     img_raw = np.squeeze(np.array(list(h.data("Andor_image"))))
     img_dark_avg = np.mean(img_raw[:num_dark], axis=0, keepdims=True)
@@ -742,6 +832,8 @@ def export_raster_2D(h, binning=4):
         hf.create_dataset("img_dark", data=np.array(img_dark_avg, np.float32))
         hf.create_dataset("img_bkg", data=np.array(img_bkg_avg, np.float32))
         hf.create_dataset("XEng", data=x_eng)
+        hf.create_dataset("Magnification", data=M)
+        hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
     try:
         write_lakeshore_to_file(h, fn_h5_save)
     except:
@@ -817,6 +909,10 @@ def export_multipos_2D_xanes_scan2(h):
     chunk_size = h.start["num_bkg_images"]
     num_eng = h.start["num_eng"]
     num_pos = h.start["num_pos"]
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
     try:
         repeat_num = h.start["plan_args"]["repeat_num"]
     except:
@@ -871,6 +967,8 @@ def export_multipos_2D_xanes_scan2(h):
                     hf.create_dataset(
                         "img_xanes", data=np.array(img_xanes[j], dtype=np.float32)
                     )
+                    hf.create_dataset("Magnification", data=M)
+                    hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
                 try:
                     write_lakeshore_to_file(h, fname)
                 except:
@@ -884,6 +982,10 @@ def export_multipos_2D_xanes_scan2(h):
 
 
 def export_multipos_2D_xanes_scan3(h):
+    zp_z_pos = h.table("baseline")["zp_z"][1]
+    DetU_z_pos = h.table("baseline")["DetU_z"][1]
+    M = (DetU_z_pos/zp_z_pos - 1)*10.
+    pxl_sz = 6500./M
     scan_type = h.start["plan_name"]
     uid = h.start["uid"]
     note = h.start["note"]
@@ -929,8 +1031,9 @@ def export_multipos_2D_xanes_scan3(h):
             hf.create_dataset("img_bkg", data=np.array(img_bkg, dtype=np.float32))
             hf.create_dataset("img_dark", data=np.array(img_dark, dtype=np.float32))
             hf.create_dataset(
-                "img_xanes", data=np.array(img_xanes[j], dtype=np.float32)
-            )
+                "img_xanes", data=np.array(img_xanes[j], dtype=np.float32))
+            hf.create_dataset("Magnification", data=M)
+            hf.create_dataset("Pixel Size", data=str(pxl_sz)+'nm') 
 
         try:
             write_lakeshore_to_file(h, fname)
@@ -945,7 +1048,7 @@ def export_multipos_2D_xanes_scan3(h):
 def export_user_fly_only(h):
     uid = h.start["uid"]
     note = h.start["note"]
-    scan_type = "user_fly_only"
+    scan_type = h.start["plan_name"]
     scan_id = h.start["scan_id"]
     scan_time = h.start["time"]
     dark_scan_id = h.start["plan_args"]["dark_scan_id"]
@@ -959,13 +1062,13 @@ def export_user_fly_only(h):
         x_eng = h.start["XEng"]
     except:
         x_eng = h.start["x_ray_energy"]
-    chunk_size = h.start["chunk_size"]
     # sanity check: make sure we remembered the right stream name
     assert "zps_pi_r_monitor" in h.stream_names
     pos = h.table("zps_pi_r_monitor")
     imgs = np.array(list(h.data("Andor_image")))
 
     s1 = imgs.shape
+    chunk_size = s1[1]
     imgs = imgs.reshape(-1, s1[2], s1[3])
 
     # load darks and bkgs

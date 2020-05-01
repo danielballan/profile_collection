@@ -89,10 +89,10 @@ def _close_shutter(simu=False):
         # yield from mv(shutter, 'Close')
         i = 0
         while not shutter_status.value:  # if 1:  closed; if 0: open
-            yield from abs_set(shutter_open, 1, wait=True)
-            yield from bps.sleep(2)
+            #yield from abs_set(shutter_open, 1, wait=True)
+            #yield from bps.sleep(2)
             yield from abs_set(shutter_close, 1, wait=True)
-            yield from bps.sleep(8)
+            yield from bps.sleep(3)
             i += 1
             print(f"try closing again ...")
             if i > 20:
@@ -111,7 +111,7 @@ def _open_shutter(simu=False):
         # yield from mv(shutter, 'Open')
         i = 0
         while shutter_status.value:  # if 1:  closed; if 0: open
-            yield from abs_set(shutter_open, 1)
+            yield from abs_set(shutter_open, 1, wait=True)
             yield from bps.sleep(1)
             i += 1
             if i > 5:
@@ -139,18 +139,18 @@ def _set_rotation_speed(rs=1):
     yield from abs_set(zps.pi_r.velocity, rs)
 
 
-def _take_image(detectors, motor, num):
+def _take_image(detectors, motor, num, stream_name='primary'):
     if not (type(detectors) == list):
         detectors = list(detectors)
     if not (type(motor) == list):
         motor = list(motor)
     for i in range(num):
-        yield from trigger_and_read(detectors + motor)
+        yield from trigger_and_read(detectors + motor, name=stream_name)
 
 
 def _take_dark_image(detectors, motor, num_dark=1, simu=False):
     yield from _close_shutter(simu)
-    yield from _take_image(detectors, motor, num_dark)
+    yield from _take_image(detectors, motor, num_dark)#, stream_name='dark')
 
 
 def _take_bkg_image(
@@ -167,7 +167,7 @@ def _take_bkg_image(
     yield from _move_sample_out(
         out_x, out_y, out_z, out_r, repeat=2, rot_first_flag=traditional_sequence_flag
     )
-    yield from _take_image(detectors, motor, num_bkg)
+    yield from _take_image(detectors, motor, num_bkg)#, stream_name='flat')
 
 
 def _xanes_per_step(eng, detectors, motor, move_flag=1, move_clens_flag=1, info_flag=0):
@@ -652,7 +652,7 @@ def xanes_scan2(
 
         for eng in eng_list:
             yield from _xanes_per_step(
-                eng, detectors, motor, move_flag=1, move_clens_flag=1, info_flag=0
+                eng, detectors, motor, move_flag=1, move_clens_flag=0, info_flag=0
             )
             if len(flt):
                 for filt in flt:
@@ -943,7 +943,6 @@ def eng_scan(
     for i in range(num):
         #      yield from scan([ic3, ic4], XEng, eng_start/1000, eng_end/1000, steps)
         yield from eng_scan_delay(
-            eng_list,
             eng_start,
             eng_end,
             steps,
@@ -952,8 +951,8 @@ def eng_scan(
             note="",
         )
         h = db[-1]
-        y0 = np.array(list(h.data(ic3.name)))
-        y1 = np.array(list(h.data(ic4.name)))
+        y0 = np.array(list(h.data(detectors[0].name)))
+        y1 = np.array(list(h.data(detectors[1].name)))
 
         r = np.log(y0 / y1)
         if not len(eng_list):
@@ -965,8 +964,8 @@ def eng_scan(
         r_dif = np.array([0] + list(np.diff(r)))
         ax2.plot(x, r_dif, ".-")
 
-    ax1.title.set_text("ratio of: {0}/{1}".format(ic3.name, ic4.name))
-    ax2.title.set_text("differential of: {0}/{1}".format(ic3.name, ic4.name))
+    ax1.title.set_text("ratio of: {0}/{1}".format(detectors[0].name, detectors[1].name))
+    ax2.title.set_text("differential of: {0}/{1}".format(detectors[0].name, detectors[1].name))
     fig.subplots_adjust(hspace=0.5)
     plt.show()
     txt_finish = '## "eng_scan()" finished'
@@ -2387,8 +2386,9 @@ def multipos_2D_xanes_scan2(
             # close shutter and sleep
             yield from _close_shutter(simu)
             # sleep
-            print(f"\nsleep for {sleep_time} seconds ...")
-            yield from bps.sleep(sleep_time)
+            if rep < repeat_num: 
+                print(f"\nsleep for {sleep_time} seconds ...")
+                yield from bps.sleep(sleep_time)
 
         yield from mv(
             zps.sx, x_list[0], zps.sy, y_list[0], zps.sz, z_list[0], zps.pi_r, r_list[0]
